@@ -21,8 +21,8 @@ from Arduino Nano's (clone) vcc  was not enough.
 Load cell amplifiers are used with this library: https://github.com/bogde/HX711
 
 Connections / pins:   
- - front load cell: A0-A1
- - rear load cell:  A2-A3
+ - rear load cell:  A0-A1
+ - font load cell:  A2-A3
  - LCD i2c-bus:     A4-A5 (SDA-SCL)
  - battery voltage  A6
 
@@ -61,8 +61,8 @@ HX711 amplifiers and LCD seem to consume quite a lot. This is why update interva
 #include "HX711.h"
 
 //sensors
-HX711 front_scale(A0, A1);
-HX711 rear_scale(A2, A3);
+HX711 front_scale(A2, A3);
+HX711 rear_scale(A0, A1);
 
 //eeprom
 #include <EEPROM.h>
@@ -572,12 +572,12 @@ void readFromEEPROM()
   EEPROM.get(s2Addr,sens_cal_2);
   
   //default values?
-  if (sens_cal_1 < 200 || sens_cal_1 > 10000)
+  if (sens_cal_1 == NAN)          
     {
     sens_cal_1 = 900; //default
     EEPROM.put(s1Addr,sens_cal_1);  
     }
-  if (sens_cal_2 < 200 || sens_cal_2 > 10000)
+  if (sens_cal_2 == NAN)        
     {
     sens_cal_2 = 900; //default
     EEPROM.put(s2Addr,sens_cal_2);  
