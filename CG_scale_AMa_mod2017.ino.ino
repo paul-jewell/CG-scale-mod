@@ -570,15 +570,13 @@ void readFromEEPROM()
   {
   EEPROM.get(s1Addr,sens_cal_1);
   EEPROM.get(s2Addr,sens_cal_2);
-  
-  //default values?
-  if (sens_cal_1 == NAN)          
+ 
+  //write default values if btn 1 is pressed, workaround to "nan" when there is nothing stored to EEPROM /first start 
+  if (b1down == true)          
     {
     sens_cal_1 = 900; //default
     EEPROM.put(s1Addr,sens_cal_1);  
-    }
-  if (sens_cal_2 == NAN)        
-    {
+
     sens_cal_2 = 900; //default
     EEPROM.put(s2Addr,sens_cal_2);  
     }
