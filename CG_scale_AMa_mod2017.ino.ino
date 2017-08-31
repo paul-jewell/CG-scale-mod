@@ -1,6 +1,15 @@
 //CG-scale originally designed and published by Olav Kallhovd; https://github.com/olkal/CG_scale
 
 /*
+-------------------------------------------------------
+Update 31.08.2017:
+ - fixed EEPROM read -problem
+ - changed low voltage limit to 6 volts
+ - changed smallest calibration step from 0.1 to 0.05
+-------------------------------------------------------
+*/
+
+/*
 Copyright Aaro Malila, Finland, 2017 (aaro.malila@gmail.com)
 
 Only one Arduino board is needed, as LCD-display with i2c-bus is used. 
@@ -21,10 +30,10 @@ from Arduino Nano's (clone) vcc  was not enough.
 Load cell amplifiers are used with this library: https://github.com/bogde/HX711
 
 Connections / pins:   
- - rear load cell:  A0-A1
- - font load cell:  A2-A3
- - LCD i2c-bus:     A4-A5 (SDA-SCL)
- - battery voltage  A6
+ - rear load cell:   A0-A1
+ - front load cell:  A2-A3
+ - LCD i2c-bus:      A4-A5 (SDA-SCL)
+ - battery voltage   A6
 
 
 Calibration function
@@ -50,6 +59,7 @@ amplifiers were used. If faster ones are found, it might be necessary to add som
 to the end of the loop -block.
 
 HX711 amplifiers and LCD seem to consume quite a lot. This is why update intervals are changed during the operation.
+
 */
 
 //libraries
@@ -60,9 +70,11 @@ HX711 amplifiers and LCD seem to consume quite a lot. This is why update interva
 //load cell amplifiers
 #include "HX711.h"
 
-//sensors
-HX711 front_scale(A2, A3);
-HX711 rear_scale(A0, A1);
+
+//load cell amplifiers - HOX! Prototype is just opposite... this is like in schema
+HX711 front_scale(A2, A3);  
+HX711 rear_scale(A0, A1); 
+
 
 //eeprom
 #include <EEPROM.h>
@@ -110,7 +122,7 @@ String t0 = "Aaro's scale";
 String t1 = "Battery:";
 
 //What is hown during the initialization phase, eg. "Initializing.."
-String t2 = "Initializing...";
+String t2 = "Initializing..";
 
 //Label for weight, eg "Weight:"
 String t3 = "Weight:";
@@ -122,7 +134,7 @@ String t4 = "CG:";
 String t5 = "Calibrate?";
 
 //Label for calibr.question row2, eg "Btn 1 = Yes"
-String t6 = "Button 1 = Yes";
+String t6 = "Btn 1 = Yes";
 //********************************************************************
 //other parameters
 byte n_avg = 8; //number of measurements from which the average is calculated (by the HX711 library)
@@ -137,7 +149,7 @@ float sens_cal_1 = 1000; //default value, this is overwritten with value stored 
 float sens_cal_2 = 1000; //default value, ...
 
 float treshold = 2; //min weight, below this "0.0" is shown
-float U_batt_low = 7; //low battery level, below this some info is shown
+float U_batt_low = 6; //low battery level, below this some info is shown
 
 bool battAlarmShown = false; //flag to control batt info display usage (is shown only once per session)
 
@@ -200,7 +212,7 @@ void setup()
   //HX711 init
   //read calibration factors from EEPROM 
   readFromEEPROM();
-   
+  
   front_scale.set_scale(sens_cal_1); 
   front_scale.tare(); 
   rear_scale.set_scale(sens_cal_2);
@@ -338,7 +350,7 @@ void loop()
   //cbr modes 1-7
   if (mode > 1 && mode < 8)
     {
-    print2lcd(1,adjSensor+", step="+String(adjStep,1));
+    print2lcd(1,adjSensor+", step="+String(adjStep,2));
     
     if (mode > 1 && mode < 5) //front sensor
       {
@@ -350,8 +362,8 @@ void loop()
       if (weight_oz == true) eW = eW * 0.035274;
       
       //print factor and result to lcd
-      if (weight_oz == false) print2lcd(2,String(sens_cal_1,1)+" "+String(eW,2)+" g");
-      if (weight_oz == true)  print2lcd(2,String(sens_cal_1,1)+" "+String(eW,2)+" oz");
+      if (weight_oz == false) print2lcd(2,String(sens_cal_1,2)+" "+String(eW,2)+" g");
+      if (weight_oz == true)  print2lcd(2,String(sens_cal_1,2)+" "+String(eW,2)+" oz");
       }
       else //rear sensor
       {
@@ -363,8 +375,8 @@ void loop()
       if (weight_oz == true) tW = tW * 0.035274;
       
       //print factor and result to lcd
-      if (weight_oz == false) print2lcd(2,String(sens_cal_2,1)+" "+String(tW,2)+" g");  
-      if (weight_oz == true)  print2lcd(2,String(sens_cal_2,1)+" "+String(tW,2)+" oz");  
+      if (weight_oz == false) print2lcd(2,String(sens_cal_2,2)+" "+String(tW,2)+" g");  
+      if (weight_oz == true)  print2lcd(2,String(sens_cal_2,2)+" "+String(tW,2)+" oz");  
       }
     }
 
@@ -481,7 +493,7 @@ void areButtonsPressed()
   //-------------------------------------------
   //mode-spesific operations
   //from basic operation to calibration mode, question?
-  if (mode == 0 && btn == 1)
+  if (mode == 0 && btn == 1 && counter > 10)
     {
     mode = 1; //question 
     btn = 0;
@@ -521,12 +533,12 @@ void areButtonsPressed()
     if (btn == 3) sens_cal_1 = sens_cal_1+adjStep;
     btn = 0;  
     }
-  //front, step = 0.1
+  //front, step = 0.05
   if (mode == 4)
     {
     if (btn == 1) mode++; //next
     adjSensor = "Front";
-    adjStep = 0.1;
+    adjStep = 0.05;
     if (btn == 2) sens_cal_1 = sens_cal_1-adjStep;
     if (btn == 3) sens_cal_1 = sens_cal_1+adjStep;
     btn = 0;  
@@ -552,12 +564,12 @@ void areButtonsPressed()
     if (btn == 3) sens_cal_2 = sens_cal_2+adjStep;
     btn = 0;  
     }
-  //rear, step = 0.1
+  //rear, step = 0.05
   if (mode == 7)
     {
     if (btn == 1) mode++; //next
     adjSensor = "Rear";
-    adjStep = 0.1;
+    adjStep = 0.05;
     if (btn == 2) sens_cal_2 = sens_cal_2-adjStep;
     if (btn == 3) sens_cal_2 = sens_cal_2+adjStep;
     btn = 0;  
@@ -568,18 +580,28 @@ void areButtonsPressed()
 //read calibration factors
 void readFromEEPROM()
   {
-  EEPROM.get(s1Addr,sens_cal_1);
-  EEPROM.get(s2Addr,sens_cal_2);
- 
-  //write default values if btn 1 is pressed, workaround to "nan" when there is nothing stored to EEPROM /first start 
-  if (b1down == true)          
+  //reset EEPROM if button1 = down
+  if (digitalRead(2) == 0)
     {
-    sens_cal_1 = 900; //default
-    EEPROM.put(s1Addr,sens_cal_1);  
+    for (int i = 0;i<EEPROM.length();i++) EEPROM.write(i, 0xff);  
+    print2lcd(1,"EEPROM RST");
 
-    sens_cal_2 = 900; //default
-    EEPROM.put(s2Addr,sens_cal_2);  
+    sens_cal_1 = 900;
+    sens_cal_2 = 900;
+
+    EEPROM.put(s1Addr,sens_cal_1);
+    EEPROM.put(s2Addr,sens_cal_1);
+    
+    delay(1000);
     }
+    else //read values from eeprom
+    {
+    EEPROM.get(s1Addr,sens_cal_1);
+    EEPROM.get(s2Addr,sens_cal_2);  
+    }
+   
+  Serial.println(sens_cal_1,HEX);
+  Serial.println(sens_cal_2,HEX);
   }
 
 //save calibration factors
@@ -601,4 +623,3 @@ void giveSignal(byte n)
     delay(t);  
     }
   }
-
